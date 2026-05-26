@@ -29,6 +29,9 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
+    connect_args={
+        "ssl": "require",  # Use SSL but don't verify certificate (needed for Supabase Pooler)
+    },
 )
 
 # Session factory: creates async sessions bound to the engine
