@@ -489,6 +489,118 @@ Need support? Contact @support_username""",
         "ru": "❌ Пользователи не найдены.",
     },
 
+    # --- Admin Generations ---
+    "admin_gen_menu": {
+        "en": "🎨 <b>Generations Management</b>\n\nChoose filter:",
+        "ru": "🎨 <b>Управление генерациями</b>\n\nВыберите фильтр:",
+    },
+
+    "admin_gen_styles": {
+        "en": "📊 <b>Generations by Style</b>\n\n{stats}",
+        "ru": "📊 <b>Генерации по стилям</b>\n\n{stats}",
+    },
+
+    "admin_gen_list": {
+        "en": "🎨 <b>Generations</b> ({filter})\n\nSelect for details:",
+        "ru": "🎨 <b>Генерации</b> ({filter})\n\nВыберите для деталей:",
+    },
+
+    "admin_gen_detail": {
+        "en": (
+            "🎨 <b>Generation #{id}</b>\n\n"
+            "👤 User: {user_id}\n"
+            "🎨 Style: {style}\n"
+            "🤖 Model: {model}\n"
+            "📊 Status: {status}\n"
+            "💰 Credits: {credits}\n"
+            "📆 Created: {created_at}\n"
+            "📝 Error: {error}"
+        ),
+        "ru": (
+            "🎨 <b>Генерация #{id}</b>\n\n"
+            "👤 Пользователь: {user_id}\n"
+            "🎨 Стиль: {style}\n"
+            "🤖 Модель: {model}\n"
+            "📊 Статус: {status}\n"
+            "💰 Кредиты: {credits}\n"
+            "📆 Создана: {created_at}\n"
+            "📝 Ошибка: {error}"
+        ),
+    },
+
+    "admin_gen_retried": {
+        "en": "✅ Generation #{id} queued for retry.",
+        "ru": "✅ Генерация #{id} поставлена в очередь на повтор.",
+    },
+
+    # --- Admin Finances ---
+    "admin_fin_menu": {
+        "en": "💰 <b>Finances</b>\n\nChoose section:",
+        "ru": "💰 <b>Финансы</b>\n\nВыберите раздел:",
+    },
+
+    "admin_fin_payments": {
+        "en": "💳 <b>Recent Payments</b>\n\n{items}",
+        "ru": "💳 <b>Последние платежи</b>\n\n{items}",
+    },
+
+    "admin_fin_plans": {
+        "en": "📊 <b>Popular Plans</b>\n\n{stats}",
+        "ru": "📊 <b>Популярные тарифы</b>\n\n{stats}",
+    },
+
+    "admin_fin_refunds": {
+        "en": "↩️ <b>Refunds</b>\n\nTotal: {count}",
+        "ru": "↩️ <b>Возвраты</b>\n\nВсего: {count}",
+    },
+
+    # --- Admin Broadcast ---
+    "admin_bc_menu": {
+        "en": "📢 <b>Broadcast</b>\n\nSelect recipients:",
+        "ru": "📢 <b>Рассылка</b>\n\nВыберите получателей:",
+    },
+
+    "admin_bc_prompt": {
+        "en": "📢 <b>Broadcast</b>\n\nSend me the message to broadcast:",
+        "ru": "📢 <b>Рассылка</b>\n\nОтправьте сообщение для рассылки:",
+    },
+
+    "admin_bc_preview": {
+        "en": "👁 <b>Preview</b>\n\n{message}\n\nRecipients: {count}\n\nConfirm sending?",
+        "ru": "👁 <b>Предпросмотр</b>\n\n{message}\n\nПолучателей: {count}\n\nПодтвердить отправку?",
+    },
+
+    "admin_bc_sent": {
+        "en": "✅ Broadcast sent to {sent}/{total} users.",
+        "ru": "✅ Рассылка отправлена {sent}/{total} пользователям.",
+    },
+
+    "admin_bc_cancelled": {
+        "en": "❌ Broadcast cancelled.",
+        "ru": "❌ Рассылка отменена.",
+    },
+
+    # --- Admin Settings ---
+    "admin_set_menu": {
+        "en": "⚙️ <b>Settings</b>\n\nChoose setting:",
+        "ru": "⚙️ <b>Настройки</b>\n\nВыберите настройку:",
+    },
+
+    "admin_set_prompt": {
+        "en": "⚙️ <b>{name}</b>\n\nCurrent: <code>{current}</code>\n\nSend new value:",
+        "ru": "⚙️ <b>{name}</b>\n\nТекущее: <code>{current}</code>\n\nОтправьте новое значение:",
+    },
+
+    "admin_set_updated": {
+        "en": "✅ <b>{name}</b> updated to <code>{value}</code>.",
+        "ru": "✅ <b>{name}</b> обновлено на <code>{value}</code>.",
+    },
+
+    "admin_set_gen_toggle": {
+        "en": "🎨 Generation is now <b>{status}</b>.",
+        "ru": "🎨 Генерация теперь <b>{status}</b>.",
+    },
+
     # --- Errors / Misc ---
     "please_start": {
         "en": "Please send /start first.",

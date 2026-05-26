@@ -32,3 +32,17 @@ class AdminSearch(StatesGroup):
     """State for admin searching users."""
 
     waiting_for_query = State()
+
+
+class AdminBroadcast(StatesGroup):
+    """States for admin broadcast flow."""
+
+    waiting_for_message = State()
+    waiting_for_confirmation = State()
+
+
+class AdminSettings(StatesGroup):
+    """States for admin settings flow."""
+
+    waiting_for_key = State()
+    waiting_for_value = State()

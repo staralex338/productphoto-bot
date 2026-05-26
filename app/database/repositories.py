@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models.generation import Generation
 from app.models.payment import Payment
+from app.models.settings import BotSetting
 from app.models.user import User
 
 settings = get_settings()
@@ -280,6 +281,61 @@ class GenerationRepository:
         )
         return result.scalar_one()
 
+    async def get_generations_by_status(self, status: str, limit: int = 20) -> list[Generation]:
+        """Get generations filtered by status."""
+        result = await self.session.execute(
+            select(Generation)
+            .where(Generation.status == status)
+            .order_by(Generation.created_at.desc())
+            .limit(limit)
+        )
+        return result.scalars().all()
+
+    async def get_generations_by_style(self, style: str, limit: int = 20) -> list[Generation]:
+        """Get generations filtered by style."""
+        result = await self.session.execute(
+            select(Generation)
+            .where(Generation.generation_type == style)
+            .order_by(Generation.created_at.desc())
+            .limit(limit)
+        )
+        return result.scalars().all()
+
+    async def get_style_stats(self) -> list[tuple[str, int]]:
+        """Get generation count grouped by style."""
+        result = await self.session.execute(
+            select(Generation.generation_type, func.count(Generation.id))
+            .group_by(Generation.generation_type)
+            .order_by(func.count(Generation.id).desc())
+        )
+        return result.all()
+
+    async def get_failed_generations(self, limit: int = 20) -> list[Generation]:
+        """Get recent failed generations for retry."""
+        result = await self.session.execute(
+            select(Generation)
+            .where(Generation.status == "failed")
+            .order_by(Generation.created_at.desc())
+            .limit(limit)
+        )
+        return result.scalars().all()
+
+    async def update_status(self, generation_id: int, status: str, generated_image_url: str | None = None, error_message: str | None = None) -> None:
+        """Update generation status and optional fields."""
+        generation = await self.get_by_id(generation_id)
+        if not generation:
+            return
+
+        generation.status = status
+        if generated_image_url is not None:
+            generation.generated_image_url = generated_image_url
+        if error_message is not None:
+            generation.error_message = error_message
+        if status in ("completed", "failed"):
+            generation.completed_at = datetime.now(timezone.utc)
+
+        await self.session.commit()
+
 
 # =============================================================================
 # Payment Repository
@@ -335,3 +391,87 @@ class PaymentRepository:
         )
         total = result.scalar_one_or_none()
         return float(total) if total else 0.0
+
+    async def get_payments_paginated(
+        self, offset: int = 0, limit: int = 20, status: str | None = None
+    ) -> list[Payment]:
+        """Get paginated payments, newest first."""
+        stmt = select(Payment).order_by(Payment.created_at.desc())
+        if status:
+            stmt = stmt.where(Payment.status == status)
+        stmt = stmt.offset(offset).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_payments_by_provider(self, provider: str, limit: int = 20) -> list[Payment]:
+        """Get payments by provider (telegram_stars | stripe)."""
+        result = await self.session.execute(
+            select(Payment)
+            .where(Payment.provider == provider)
+            .order_by(Payment.created_at.desc())
+            .limit(limit)
+        )
+        return result.scalars().all()
+
+    async def get_popular_plans(self) -> list[tuple[str, int]]:
+        """Get most popular subscription/pack plans."""
+        result = await self.session.execute(
+            select(Payment.plan_name, func.count(Payment.id))
+            .where(Payment.status == "completed")
+            .group_by(Payment.plan_name)
+            .order_by(func.count(Payment.id).desc())
+        )
+        return result.all()
+
+    async def get_refunds_count(self) -> int:
+        """Count refunded payments."""
+        result = await self.session.execute(
+            select(func.count(Payment.id)).where(Payment.status == "refunded")
+        )
+        return result.scalar_one()
+
+
+# =============================================================================
+# Settings Repository
+# =============================================================================
+
+
+class SettingsRepository:
+    """Repository for dynamic bot settings."""
+
+    def __init__(self, session):
+        self.session = session
+
+    async def get(self, key: str, default: str = "") -> str:
+        """Get setting value by key."""
+        result = await self.session.execute(
+            select(BotSetting).where(BotSetting.key == key)
+        )
+        setting = result.scalar_one_or_none()
+        return setting.value if setting else default
+
+    async def set(self, key: str, value: str, description: str = None) -> None:
+        """Set or update setting value."""
+        result = await self.session.execute(
+            select(BotSetting).where(BotSetting.key == key)
+        )
+        setting = result.scalar_one_or_none()
+
+        if setting:
+            setting.value = value
+            if description:
+                setting.description = description
+        else:
+            setting = BotSetting(
+                key=key,
+                value=value,
+                description=description,
+            )
+            self.session.add(setting)
+
+        await self.session.commit()
+
+    async def get_all(self) -> list[BotSetting]:
+        """Get all settings."""
+        result = await self.session.execute(select(BotSetting))
+        return result.scalars().all()

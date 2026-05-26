@@ -233,6 +233,10 @@ def admin_dashboard_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=t.t("admin_generations"), callback_data="admin:generations"),
     )
     builder.row(
+        InlineKeyboardButton(text="💰 Финансы", callback_data="admin:fin"),
+        InlineKeyboardButton(text="⚙️ Настройки", callback_data="admin:settings"),
+    )
+    builder.row(
         InlineKeyboardButton(text=t.t("admin_broadcast"), callback_data="admin:broadcast"),
     )
     return builder.as_markup()
@@ -323,5 +327,161 @@ def admin_user_history_keyboard(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="🔙 К профилю", callback_data=f"admin:user:{user_id}"),
+    )
+    return builder.as_markup()
+
+
+# =============================================================================
+# Admin Generations
+# =============================================================================
+
+
+def admin_generations_menu_keyboard() -> InlineKeyboardMarkup:
+    """Menu for generations management."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="📊 По стилям", callback_data="admin:gen:styles"),
+        InlineKeyboardButton(text="❌ Failed", callback_data="admin:gen:failed"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="⏳ Pending", callback_data="admin:gen:pending"),
+        InlineKeyboardButton(text="✅ Completed", callback_data="admin:gen:completed"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data="admin:dashboard"),
+    )
+    return builder.as_markup()
+
+
+def admin_generations_list_keyboard(generations: list, filter_type: str, page: int = 0, total_pages: int = 1) -> InlineKeyboardMarkup:
+    """Keyboard for paginated generation list."""
+    builder = InlineKeyboardBuilder()
+
+    for gen in generations:
+        status_icon = "✅" if gen.status == "completed" else "⏳" if gen.status == "pending" else "❌"
+        label = f"{status_icon} #{gen.id} | {gen.generation_type[:15]}"
+        builder.row(
+            InlineKeyboardButton(text=label, callback_data=f"admin:gen:{gen.id}")
+        )
+
+    # Pagination
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"admin:gen:{filter_type}:{page-1}"))
+    nav.append(InlineKeyboardButton(text=f"{page+1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"admin:gen:{filter_type}:{page+1}"))
+    if nav:
+        builder.row(*nav)
+
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data="admin:generations"),
+    )
+    return builder.as_markup()
+
+
+def admin_generation_detail_keyboard(gen_id: int, can_retry: bool = False) -> InlineKeyboardMarkup:
+    """Keyboard for generation detail."""
+    builder = InlineKeyboardBuilder()
+    if can_retry:
+        builder.row(
+            InlineKeyboardButton(text="🔄 Повторить", callback_data=f"admin:gen:{gen_id}:retry"),
+        )
+    builder.row(
+        InlineKeyboardButton(text="🔙 К списку", callback_data="admin:gen:failed"),
+    )
+    return builder.as_markup()
+
+
+# =============================================================================
+# Admin Finances
+# =============================================================================
+
+
+def admin_finances_menu_keyboard() -> InlineKeyboardMarkup:
+    """Menu for finances."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="💳 Все платежи", callback_data="admin:fin:payments"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="⭐ Stars", callback_data="admin:fin:stars"),
+        InlineKeyboardButton(text="💳 Stripe", callback_data="admin:fin:stripe"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="📊 Популярные тарифы", callback_data="admin:fin:plans"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="↩️ Возвраты", callback_data="admin:fin:refunds"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data="admin:dashboard"),
+    )
+    return builder.as_markup()
+
+
+# =============================================================================
+# Admin Broadcast
+# =============================================================================
+
+
+def admin_broadcast_menu_keyboard() -> InlineKeyboardMarkup:
+    """Menu for broadcast."""
+    t = Translator("ru")
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🌍 Всем", callback_data="admin:bc:all"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🇬🇧 EN", callback_data="admin:bc:lang:en"),
+        InlineKeyboardButton(text="🇷🇺 RU", callback_data="admin:bc:lang:ru"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🆓 Free", callback_data="admin:bc:plan:free"),
+        InlineKeyboardButton(text="⭐ Paid", callback_data="admin:bc:plan:paid"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data="admin:dashboard"),
+    )
+    return builder.as_markup()
+
+
+def admin_broadcast_confirm_keyboard() -> InlineKeyboardMarkup:
+    """Confirm or cancel broadcast."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="✅ Отправить", callback_data="admin:bc:confirm"),
+        InlineKeyboardButton(text="❌ Отмена", callback_data="admin:broadcast"),
+    )
+    return builder.as_markup()
+
+
+# =============================================================================
+# Admin Settings
+# =============================================================================
+
+
+def admin_settings_menu_keyboard() -> InlineKeyboardMarkup:
+    """Menu for system settings."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="💰 Цены", callback_data="admin:set:prices"),
+        InlineKeyboardButton(text="🎁 Стартовый бонус", callback_data="admin:set:bonus"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🎨 Генерация", callback_data="admin:set:gen"),
+        InlineKeyboardButton(text="💧 Watermark", callback_data="admin:set:wm"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data="admin:dashboard"),
+    )
+    return builder.as_markup()
+
+
+def admin_settings_value_keyboard(key: str) -> InlineKeyboardMarkup:
+    """Back button for settings."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data="admin:settings"),
     )
     return builder.as_markup()
