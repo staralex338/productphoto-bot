@@ -22,7 +22,6 @@ WORKDIR /app
 # Install runtime system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
-    libffi8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder
