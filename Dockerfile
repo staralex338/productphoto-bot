@@ -1,5 +1,5 @@
 # Stage 1: Build dependencies
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ WORKDIR /app
 # Install runtime system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
-    libffi7 \
+    libffi8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder
@@ -36,10 +36,6 @@ ENV PATH=/root/.local/bin:$PATH \
 # Copy application code
 COPY ./app ./app
 COPY requirements.txt .
-
-# Create non-root user for security (optional, can be enabled later)
-# RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-# USER appuser
 
 # Expose port
 EXPOSE 8000
