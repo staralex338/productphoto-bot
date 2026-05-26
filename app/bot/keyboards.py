@@ -47,6 +47,9 @@ def main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=t.t("btn_referral"), callback_data="menu:referral"),
         InlineKeyboardButton(text=t.t("btn_help"), callback_data="menu:help"),
     )
+    builder.row(
+        InlineKeyboardButton(text=t.t("btn_language"), callback_data="menu:language"),
+    )
     return builder.as_markup()
 
 

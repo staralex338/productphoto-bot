@@ -134,6 +134,7 @@ Need support? Contact @support_username""",
     "btn_help": {"en": "❓ Help", "ru": "❓ Помощь"},
     "btn_back": {"en": "🔙 Back", "ru": "🔙 Назад"},
     "btn_main_menu": {"en": "🏠 Main Menu", "ru": "🏠 Главное меню"},
+    "btn_language": {"en": "🌍 Language", "ru": "🌍 Язык"},
     "btn_confirm": {"en": "✅ Confirm", "ru": "✅ Подтвердить"},
     "btn_cancel": {"en": "❌ Cancel", "ru": "❌ Отмена"},
 

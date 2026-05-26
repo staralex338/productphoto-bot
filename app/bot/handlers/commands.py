@@ -56,6 +56,9 @@ async def cmd_start(message: Message):
             username=message.from_user.username,
         )
 
+        logger.info("cmd_start: user_id=%s is_new=%s language=%s", 
+                    message.from_user.id, is_new, user.language)
+
         # Process referral code if provided and user is new
         if referral_code and is_new:
             from app.bot.services.referrals import (
@@ -126,6 +129,27 @@ async def on_language_selected(callback: CallbackQuery):
             reply_markup=main_menu_keyboard(lang),
         )
         await callback.answer()
+
+
+# =============================================================================
+# /lang — Change language
+# =============================================================================
+
+@router.message(Command("lang"))
+async def cmd_lang(message: Message):
+    """Allow user to change language at any time."""
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(message.from_user.id)
+
+        if not user:
+            await message.answer(Translator("en").t("please_start"))
+            return
+
+    await message.answer(
+        "🌍 <b>Choose your language / Выберите язык</b>",
+        reply_markup=language_selection_keyboard(),
+    )
 
 
 # =============================================================================
@@ -237,6 +261,16 @@ async def on_menu_main(callback: CallbackQuery):
             app_name=settings.app_name,
             free_credits=settings.free_credits_on_start),
         reply_markup=main_menu_keyboard(lang),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:language")
+async def on_menu_language(callback: CallbackQuery):
+    """Show language selection from menu button."""
+    await callback.message.edit_text(
+        "🌍 <b>Choose your language / Выберите язык</b>",
+        reply_markup=language_selection_keyboard(),
     )
     await callback.answer()
 
