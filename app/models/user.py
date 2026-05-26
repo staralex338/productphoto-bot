@@ -52,6 +52,14 @@ class User(Base):
         comment="Available credits",
     )
 
+    # Language preference
+    language: Mapped[str] = mapped_column(
+        String(5),
+        default="en",
+        nullable=False,
+        comment="User language code (en, ru)",
+    )
+
     # Subscription plan
     subscription_type: Mapped[str] = mapped_column(
         String(20),

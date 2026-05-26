@@ -2,6 +2,7 @@
 Telegram payment handlers.
 
 Handles pre-checkout queries and successful payments for Telegram Stars.
+Supports multilingual messages.
 """
 
 import logging
@@ -9,12 +10,22 @@ import logging
 from aiogram import F, Router
 from aiogram.types import Message, PreCheckoutQuery
 
+from app.bot.i18n import Translator
 from app.bot.keyboards import main_menu_keyboard
-from app.bot.messages import PAYMENT_SUCCESS_STARS
+from app.database import AsyncSessionLocal
+from app.database.repositories import UserRepository
 from app.payments.telegram_stars import process_successful_payment
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+
+async def get_user_language(telegram_id: int) -> str:
+    """Fetch user's preferred language from database."""
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(telegram_id)
+        return user.language if user else "en"
 
 
 # =============================================================================
@@ -44,6 +55,9 @@ async def on_successful_payment(message: Message):
 
     Credits are added to the user's account immediately.
     """
+    lang = await get_user_language(message.from_user.id)
+    t = Translator(lang)
+
     payment = message.successful_payment
     telegram_id = message.from_user.id
 
@@ -72,18 +86,16 @@ async def on_successful_payment(message: Message):
             display_name = f"{item_name} Credits Pack"
 
         await message.answer(
-            PAYMENT_SUCCESS_STARS.format(
+            t.t("payment_success_stars",
                 item_name=display_name,
                 credits_added=result["credits_added"],
-                new_balance=result["new_balance"],
-            ),
-            reply_markup=main_menu_keyboard(),
+                new_balance=result["new_balance"]),
+            reply_markup=main_menu_keyboard(lang),
         )
 
     except Exception as e:
         logger.exception("Error processing successful payment: %s", e)
         await message.answer(
-            "❌ Payment was received but we could not add credits. "
-            "Please contact support with your receipt.",
-            reply_markup=main_menu_keyboard(),
+            t.t("payment_failed"),
+            reply_markup=main_menu_keyboard(lang),
         )

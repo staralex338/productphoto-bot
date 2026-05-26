@@ -2,6 +2,7 @@
 Command handlers for Telegram bot.
 
 Handles /start, /help, /balance, /history commands.
+Supports language selection for new users.
 """
 
 import logging
@@ -11,17 +12,12 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot.i18n import Translator
 from app.bot.keyboards import (
     buy_credits_keyboard,
+    language_selection_keyboard,
     main_menu_keyboard,
     referral_keyboard,
-)
-from app.bot.messages import (
-    BALANCE_MESSAGE,
-    HELP_MESSAGE,
-    HISTORY_EMPTY_MESSAGE,
-    REFERRAL_MESSAGE,
-    WELCOME_MESSAGE,
 )
 from app.config import get_settings
 from app.database import AsyncSessionLocal
@@ -47,21 +43,21 @@ async def cmd_start(message: Message):
     """
     Handle /start command.
 
-    If user arrives with a referral code (e.g., /start REFCODE),
-    process it after user creation.
+    If user is new — show language selection.
+    If existing — show main menu in their language.
     """
     args = message.text.split(maxsplit=1)[1:] if message.text else []
     referral_code = args[0].upper() if args else None
 
     async with AsyncSessionLocal() as session:
         user_repo = UserRepository(session)
-        user = await user_repo.get_or_create(
+        user, is_new = await user_repo.get_or_create(
             telegram_id=message.from_user.id,
             username=message.from_user.username,
         )
 
-        # Process referral code if provided and user is new (has default credits)
-        if referral_code:
+        # Process referral code if provided and user is new
+        if referral_code and is_new:
             from app.bot.services.referrals import (
                 AlreadyReferredError,
                 InvalidReferralCodeError,
@@ -74,12 +70,11 @@ async def cmd_start(message: Message):
                     new_user_telegram_id=message.from_user.id,
                     referral_code=referral_code,
                 )
-                # Send bonus notification to new user
+                t = Translator(user.language)
                 await message.answer(
-                    f"🎉 <b>Welcome bonus!</b>\n\n"
-                    f"You were invited by a friend and received "
-                    f"<b>+{result['bonus_invited']}</b> bonus credits!\n\n"
-                    f"Your friend also got <b>+{result['bonus_inviter']}</b> credits. 🎁",
+                    t.t("referral_bonus",
+                        bonus_invited=result['bonus_invited'],
+                        bonus_inviter=result['bonus_inviter']),
                 )
             except SelfReferralError:
                 logger.info("User %d tried to self-refer", message.from_user.id)
@@ -90,10 +85,47 @@ async def cmd_start(message: Message):
             except Exception as e:
                 logger.exception("Referral processing error: %s", e)
 
-        await message.answer(
-            WELCOME_MESSAGE,
-            reply_markup=main_menu_keyboard(),
+        if is_new:
+            # New user — show language selection
+            await message.answer(
+                "🌍 <b>Choose your language / Выберите язык</b>",
+                reply_markup=language_selection_keyboard(),
+            )
+        else:
+            # Existing user — show main menu in their language
+            t = Translator(user.language)
+            await message.answer(
+                t.t("welcome",
+                    app_name=settings.app_name,
+                    free_credits=settings.free_credits_on_start),
+                reply_markup=main_menu_keyboard(user.language),
+            )
+
+
+# =============================================================================
+# Language Selection Callback
+# =============================================================================
+
+@router.callback_query(F.data.startswith("lang:"))
+async def on_language_selected(callback: CallbackQuery):
+    """Handle language selection from new user."""
+    lang = callback.data.split(":")[1]
+
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(callback.from_user.id)
+
+        if user:
+            await user_repo.set_language(user.id, lang)
+
+        t = Translator(lang)
+        await callback.message.edit_text(
+            t.t("welcome",
+                app_name=settings.app_name,
+                free_credits=settings.free_credits_on_start),
+            reply_markup=main_menu_keyboard(lang),
         )
+        await callback.answer()
 
 
 # =============================================================================
@@ -103,7 +135,19 @@ async def cmd_start(message: Message):
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     """Handle /help command."""
-    await message.answer(HELP_MESSAGE, reply_markup=main_menu_keyboard())
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(message.from_user.id)
+        lang = user.language if user else "en"
+
+    t = Translator(lang)
+    await message.answer(
+        t.t("help",
+            app_name=settings.app_name,
+            max_size=settings.max_image_size_mb,
+            min_dim=settings.min_image_dimension),
+        reply_markup=main_menu_keyboard(lang),
+    )
 
 
 # =============================================================================
@@ -118,16 +162,17 @@ async def cmd_balance(message: Message):
         user = await user_repo.get_by_telegram_id(message.from_user.id)
 
         if not user:
-            await message.answer("Please send /start first.")
+            await message.answer(Translator("en").t("please_start"))
             return
 
-        text = BALANCE_MESSAGE.format(
+        t = Translator(user.language)
+        text = t.t("balance",
             credits=user.credits,
             plan=user.subscription_type.upper(),
             referral_code=user.referral_code,
             referral_bonus=settings.referral_bonus_inviter,
         )
-        await message.answer(text, reply_markup=buy_credits_keyboard())
+        await message.answer(text, reply_markup=buy_credits_keyboard(user.language))
 
 
 # =============================================================================
@@ -142,21 +187,22 @@ async def cmd_history(message: Message):
         user = await user_repo.get_by_telegram_id(message.from_user.id)
 
         if not user:
-            await message.answer("Please send /start first.")
+            await message.answer(Translator("en").t("please_start"))
             return
 
+        t = Translator(user.language)
         gen_repo = GenerationRepository(session)
         generations = await gen_repo.get_user_history(user_id=user.id, limit=10)
 
         if not generations:
             await message.answer(
-                HISTORY_EMPTY_MESSAGE,
-                reply_markup=main_menu_keyboard(),
+                t.t("history_empty"),
+                reply_markup=main_menu_keyboard(user.language),
             )
             return
 
         # Build history text with more details
-        lines = ["📜 <b>Your Last Generations</b>\n"]
+        lines = [t.t("history_title")]
         for gen in generations:
             status_icon = "✅" if gen.status == "completed" else "⏳" if gen.status == "pending" else "❌"
             style_name = gen.generation_type.replace('_', ' ').title()
@@ -169,7 +215,7 @@ async def cmd_history(message: Message):
 
         await message.answer(
             "\n".join(lines),
-            reply_markup=main_menu_keyboard(),
+            reply_markup=main_menu_keyboard(user.language),
         )
 
 
@@ -180,9 +226,17 @@ async def cmd_history(message: Message):
 @router.callback_query(F.data == "menu:main")
 async def on_menu_main(callback: CallbackQuery):
     """Return to main menu."""
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(callback.from_user.id)
+        lang = user.language if user else "en"
+
+    t = Translator(lang)
     await callback.message.edit_text(
-        WELCOME_MESSAGE,
-        reply_markup=main_menu_keyboard(),
+        t.t("welcome",
+            app_name=settings.app_name,
+            free_credits=settings.free_credits_on_start),
+        reply_markup=main_menu_keyboard(lang),
     )
     await callback.answer()
 
@@ -190,9 +244,18 @@ async def on_menu_main(callback: CallbackQuery):
 @router.callback_query(F.data == "menu:help")
 async def on_menu_help(callback: CallbackQuery):
     """Show help from menu button."""
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(callback.from_user.id)
+        lang = user.language if user else "en"
+
+    t = Translator(lang)
     await callback.message.edit_text(
-        HELP_MESSAGE,
-        reply_markup=main_menu_keyboard(),
+        t.t("help",
+            app_name=settings.app_name,
+            max_size=settings.max_image_size_mb,
+            min_dim=settings.min_image_dimension),
+        reply_markup=main_menu_keyboard(lang),
     )
     await callback.answer()
 
@@ -205,16 +268,17 @@ async def on_menu_profile(callback: CallbackQuery):
         user = await user_repo.get_by_telegram_id(callback.from_user.id)
 
         if not user:
-            await callback.answer("User not found. Send /start", show_alert=True)
+            await callback.answer(Translator("en").t("user_not_found"), show_alert=True)
             return
 
-        text = BALANCE_MESSAGE.format(
+        t = Translator(user.language)
+        text = t.t("balance",
             credits=user.credits,
             plan=user.subscription_type.upper(),
             referral_code=user.referral_code,
             referral_bonus=settings.referral_bonus_inviter,
         )
-        await callback.message.edit_text(text, reply_markup=buy_credits_keyboard())
+        await callback.message.edit_text(text, reply_markup=buy_credits_keyboard(user.language))
         await callback.answer()
 
 
@@ -226,21 +290,22 @@ async def on_menu_history(callback: CallbackQuery):
         user = await user_repo.get_by_telegram_id(callback.from_user.id)
 
         if not user:
-            await callback.answer("User not found. Send /start", show_alert=True)
+            await callback.answer(Translator("en").t("user_not_found"), show_alert=True)
             return
 
+        t = Translator(user.language)
         gen_repo = GenerationRepository(session)
         generations = await gen_repo.get_user_history(user_id=user.id, limit=10)
 
         if not generations:
             await callback.message.edit_text(
-                HISTORY_EMPTY_MESSAGE,
-                reply_markup=main_menu_keyboard(),
+                t.t("history_empty"),
+                reply_markup=main_menu_keyboard(user.language),
             )
             await callback.answer()
             return
 
-        lines = ["📜 <b>Your Last Generations</b>\n"]
+        lines = [t.t("history_title")]
         for gen in generations:
             status_icon = "✅" if gen.status == "completed" else "⏳" if gen.status == "pending" else "❌"
             style_name = gen.generation_type.replace('_', ' ').title()
@@ -253,7 +318,7 @@ async def on_menu_history(callback: CallbackQuery):
 
         await callback.message.edit_text(
             "\n".join(lines),
-            reply_markup=main_menu_keyboard(),
+            reply_markup=main_menu_keyboard(user.language),
         )
         await callback.answer()
 
@@ -266,7 +331,7 @@ async def on_menu_referral(callback: CallbackQuery, bot: Bot):
         user = await user_repo.get_by_telegram_id(callback.from_user.id)
 
         if not user:
-            await callback.answer("User not found. Send /start", show_alert=True)
+            await callback.answer(Translator("en").t("user_not_found"), show_alert=True)
             return
 
         # Get actual referral stats
@@ -278,7 +343,8 @@ async def on_menu_referral(callback: CallbackQuery, bot: Bot):
         bot_username = bot_info.username
         referral_link = f"https://t.me/{bot_username}?start={user.referral_code}"
 
-        text = REFERRAL_MESSAGE.format(
+        t = Translator(user.language)
+        text = t.t("referral",
             inviter_bonus=settings.referral_bonus_inviter,
             invited_bonus=settings.referral_bonus_invited,
             referral_link=referral_link,
@@ -287,6 +353,6 @@ async def on_menu_referral(callback: CallbackQuery, bot: Bot):
         )
         await callback.message.edit_text(
             text,
-            reply_markup=referral_keyboard(referral_link),
+            reply_markup=referral_keyboard(referral_link, user.language),
         )
         await callback.answer()

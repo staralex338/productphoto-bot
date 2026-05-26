@@ -9,8 +9,8 @@ from pathlib import Path
 
 from aiogram import Bot
 
+from app.bot.i18n import Translator
 from app.bot.keyboards import generation_result_keyboard
-from app.bot.messages import GENERATION_ERROR_MESSAGE
 from app.bot.services.fal_client import upscale_image
 from app.config import get_settings
 from app.database import AsyncSessionLocal
@@ -43,6 +43,13 @@ async def run_upscale(
     """
     logger.info("Starting upscale for generation %s", generation_id)
 
+    # Fetch user language
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(telegram_id)
+        lang = user.language if user else "en"
+    t = Translator(lang)
+
     try:
         # -----------------------------------------------------------------
         # Step 1: Fetch generation
@@ -54,7 +61,7 @@ async def run_upscale(
             if not generation or generation.status != "completed":
                 await bot.send_message(
                     chat_id=chat_id,
-                    text="❌ Cannot upscale: generation not found or not completed.",
+                    text=t.t("upscale_error_not_found"),
                 )
                 return
 
@@ -63,7 +70,7 @@ async def run_upscale(
             if not image_urls:
                 await bot.send_message(
                     chat_id=chat_id,
-                    text="❌ No images found to upscale.",
+                    text=t.t("upscale_error_no_images"),
                 )
                 return
 
@@ -113,8 +120,8 @@ async def run_upscale(
         await bot.send_photo(
             chat_id=chat_id,
             photo=FSInputFile(str(upscaled_local)),
-            caption="🔍 <b>Upscaled 2x</b>\n\n✅ Your image has been enhanced!",
-            reply_markup=generation_result_keyboard(generation_id),
+            caption=t.t("upscale_complete"),
+            reply_markup=generation_result_keyboard(generation_id, lang),
         )
 
         logger.info("Upscale for generation %s completed", generation_id)
@@ -131,8 +138,8 @@ async def run_upscale(
 
         await bot.send_message(
             chat_id=chat_id,
-            text=GENERATION_ERROR_MESSAGE,
-            reply_markup=generation_result_keyboard(generation_id),
+            text=t.t("generation_error"),
+            reply_markup=generation_result_keyboard(generation_id, lang),
         )
 
     finally:

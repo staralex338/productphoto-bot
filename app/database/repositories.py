@@ -47,6 +47,7 @@ class UserRepository:
         telegram_id: int,
         username: str | None = None,
         invited_by: int | None = None,
+        language: str = "en",
     ) -> User:
         """Create a new user with free starting credits."""
         user = User(
@@ -54,6 +55,7 @@ class UserRepository:
             username=username,
             credits=settings.free_credits_on_start,
             invited_by=invited_by,
+            language=language,
         )
         self.session.add(user)
         await self.session.commit()
@@ -64,15 +66,15 @@ class UserRepository:
         self,
         telegram_id: int,
         username: str | None = None,
-    ) -> User:
-        """Get existing user or create a new one."""
+    ) -> tuple[User, bool]:
+        """Get existing user or create a new one. Returns (user, is_new)."""
         user = await self.get_by_telegram_id(telegram_id)
         if user:
             if username and user.username != username:
                 user.username = username
                 await self.session.commit()
-            return user
-        return await self.create_user(telegram_id, username)
+            return user, False
+        return await self.create_user(telegram_id, username), True
 
     async def add_credits(self, user_id: int, amount: int) -> int:
         """Add credits to a user's balance. Returns new balance."""
@@ -105,7 +107,14 @@ class UserRepository:
         )
         await self.session.commit()
 
-    async def get_user_count(self) -> int:
+    async def set_language(self, user_id: int, language: str) -> None:
+        """Update user's language preference."""
+        await self.session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(language=language)
+        )
+        await self.session.commit()
         """Get total number of registered users."""
         result = await self.session.execute(select(func.count(User.id)))
         return result.scalar_one()

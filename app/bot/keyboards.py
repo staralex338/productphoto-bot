@@ -2,10 +2,28 @@
 Inline keyboards and reply markup builders for the bot.
 
 Uses aiogram 3.x InlineKeyboardBuilder for clean, type-safe buttons.
+All labels are translated based on user's language.
 """
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from app.bot.i18n import SUPPORTED_LANGUAGES, Translator
+
+
+# =============================================================================
+# Language Selection
+# =============================================================================
+
+
+def language_selection_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard for choosing language on first start."""
+    builder = InlineKeyboardBuilder()
+    for code, label in SUPPORTED_LANGUAGES.items():
+        builder.row(
+            InlineKeyboardButton(text=label, callback_data=f"lang:{code}")
+        )
+    return builder.as_markup()
 
 
 # =============================================================================
@@ -13,20 +31,21 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 # =============================================================================
 
 
-def main_menu_keyboard() -> InlineKeyboardMarkup:
+def main_menu_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """Main menu shown after /start or when user taps 'Menu'."""
+    t = Translator(lang)
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text="📸 Generate Photo", callback_data="menu:generate"),
-        InlineKeyboardButton(text="💰 Buy Credits", callback_data="menu:buy"),
+        InlineKeyboardButton(text=t.t("btn_generate"), callback_data="menu:generate"),
+        InlineKeyboardButton(text=t.t("btn_buy"), callback_data="menu:buy"),
     )
     builder.row(
-        InlineKeyboardButton(text="📜 History", callback_data="menu:history"),
-        InlineKeyboardButton(text="👤 Profile", callback_data="menu:profile"),
+        InlineKeyboardButton(text=t.t("btn_history"), callback_data="menu:history"),
+        InlineKeyboardButton(text=t.t("btn_profile"), callback_data="menu:profile"),
     )
     builder.row(
-        InlineKeyboardButton(text="🎁 Referral Program", callback_data="menu:referral"),
-        InlineKeyboardButton(text="❓ Help", callback_data="menu:help"),
+        InlineKeyboardButton(text=t.t("btn_referral"), callback_data="menu:referral"),
+        InlineKeyboardButton(text=t.t("btn_help"), callback_data="menu:help"),
     )
     return builder.as_markup()
 
@@ -36,39 +55,38 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
 # =============================================================================
 
 
-def style_selection_keyboard() -> InlineKeyboardMarkup:
+def style_selection_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """
     Keyboard for choosing generation style.
-
-    Each button maps to a generation style that determines the AI prompt.
     """
+    t = Translator(lang)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text="⚪ White Background",
+            text=t.t("style_white_background"),
             callback_data="style:white_background",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="🏠 Lifestyle",
+            text=t.t("style_lifestyle"),
             callback_data="style:lifestyle",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="💎 Studio Premium",
+            text=t.t("style_studio_premium"),
             callback_data="style:studio_premium",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="📱 Social Media Ad",
+            text=t.t("style_social_media"),
             callback_data="style:social_media_ad",
         )
     )
     builder.row(
-        InlineKeyboardButton(text="🔙 Back", callback_data="menu:main"),
+        InlineKeyboardButton(text=t.t("btn_back"), callback_data="menu:main"),
     )
     return builder.as_markup()
 
@@ -78,26 +96,24 @@ def style_selection_keyboard() -> InlineKeyboardMarkup:
 # =============================================================================
 
 
-def generation_result_keyboard(generation_id: int) -> InlineKeyboardMarkup:
+def generation_result_keyboard(generation_id: int, lang: str = "en") -> InlineKeyboardMarkup:
     """
     Keyboard shown under generated images.
-
-    Args:
-        generation_id: Database ID of the generation record.
     """
+    t = Translator(lang)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text="🔄 Regenerate",
+            text=t.t("btn_regenerate"),
             callback_data=f"action:regenerate:{generation_id}",
         ),
         InlineKeyboardButton(
-            text="🔍 Upscale",
+            text=t.t("btn_upscale"),
             callback_data=f"action:upscale:{generation_id}",
         ),
     )
     builder.row(
-        InlineKeyboardButton(text="🏠 Main Menu", callback_data="menu:main"),
+        InlineKeyboardButton(text=t.t("btn_main_menu"), callback_data="menu:main"),
     )
     return builder.as_markup()
 
@@ -107,19 +123,20 @@ def generation_result_keyboard(generation_id: int) -> InlineKeyboardMarkup:
 # =============================================================================
 
 
-def buy_credits_keyboard() -> InlineKeyboardMarkup:
+def buy_credits_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """Keyboard for purchasing credit packs and subscriptions."""
+    t = Translator(lang)
     builder = InlineKeyboardBuilder()
     # Subscription plans
     builder.row(
         InlineKeyboardButton(
-            text="🚀 Starter — 100 cr/mo",
+            text=t.t("btn_starter"),
             callback_data="buy:subscription:starter",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="⭐ Pro — 500 cr/mo",
+            text=t.t("btn_pro"),
             callback_data="buy:subscription:pro",
         )
     )
@@ -130,34 +147,31 @@ def buy_credits_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="500 credits", callback_data="buy:pack:500"),
     )
     builder.row(
-        InlineKeyboardButton(text="🔙 Back", callback_data="menu:main"),
+        InlineKeyboardButton(text=t.t("btn_back"), callback_data="menu:main"),
     )
     return builder.as_markup()
 
 
-def payment_method_keyboard(item_type: str, item_name: str) -> InlineKeyboardMarkup:
+def payment_method_keyboard(item_type: str, item_name: str, lang: str = "en") -> InlineKeyboardMarkup:
     """
     Keyboard for choosing payment method.
-
-    Args:
-        item_type: "subscription" or "pack"
-        item_name: Plan or pack identifier
     """
+    t = Translator(lang)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text="⭐ Pay with Telegram Stars",
+            text=t.t("btn_pay_stars"),
             callback_data=f"pay:stars:{item_type}:{item_name}",
         )
     )
     builder.row(
         InlineKeyboardButton(
-            text="💳 Pay with Card (Stripe)",
+            text=t.t("btn_pay_card"),
             callback_data=f"pay:stripe:{item_type}:{item_name}",
         )
     )
     builder.row(
-        InlineKeyboardButton(text="🔙 Back", callback_data="menu:buy"),
+        InlineKeyboardButton(text=t.t("btn_back"), callback_data="menu:buy"),
     )
     return builder.as_markup()
 
@@ -167,17 +181,18 @@ def payment_method_keyboard(item_type: str, item_name: str) -> InlineKeyboardMar
 # =============================================================================
 
 
-def referral_keyboard(referral_link: str) -> InlineKeyboardMarkup:
+def referral_keyboard(referral_link: str, lang: str = "en") -> InlineKeyboardMarkup:
     """Keyboard for sharing referral link."""
+    t = Translator(lang)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text="📤 Share with Friends",
+            text=t.t("btn_share"),
             url=f"https://t.me/share/url?url={referral_link}&text=Get%20free%20AI%20product%20photos!",
         )
     )
     builder.row(
-        InlineKeyboardButton(text="🔙 Main Menu", callback_data="menu:main"),
+        InlineKeyboardButton(text=t.t("btn_main_menu"), callback_data="menu:main"),
     )
     return builder.as_markup()
 
@@ -187,11 +202,12 @@ def referral_keyboard(referral_link: str) -> InlineKeyboardMarkup:
 # =============================================================================
 
 
-def confirm_cancel_keyboard(confirm_callback: str, cancel_callback: str = "menu:main") -> InlineKeyboardMarkup:
+def confirm_cancel_keyboard(confirm_callback: str, cancel_callback: str = "menu:main", lang: str = "en") -> InlineKeyboardMarkup:
     """Generic confirm/cancel keyboard."""
+    t = Translator(lang)
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text="✅ Confirm", callback_data=confirm_callback),
-        InlineKeyboardButton(text="❌ Cancel", callback_data=cancel_callback),
+        InlineKeyboardButton(text=t.t("btn_confirm"), callback_data=confirm_callback),
+        InlineKeyboardButton(text=t.t("btn_cancel"), callback_data=cancel_callback),
     )
     return builder.as_markup()

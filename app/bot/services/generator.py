@@ -20,8 +20,8 @@ from pathlib import Path
 from aiogram import Bot
 from aiogram.types import BufferedInputFile, FSInputFile
 
+from app.bot.i18n import Translator
 from app.bot.keyboards import generation_result_keyboard
-from app.bot.messages import GENERATION_ERROR_MESSAGE
 from app.bot.services.background_removal import remove_background
 from app.bot.services.fal_client import generate_image
 from app.config import get_settings
@@ -63,6 +63,13 @@ async def run_generation(
         bot: aiogram Bot instance
     """
     logger.info("Starting generation %s for user %s", generation_id, user_id)
+
+    # Fetch user language
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(telegram_id)
+        lang = user.language if user else "en"
+    t = Translator(lang)
 
     try:
         # -----------------------------------------------------------------
@@ -137,7 +144,7 @@ async def run_generation(
         # -----------------------------------------------------------------
         # Step 7: Send results to user
         # -----------------------------------------------------------------
-        await _send_results(bot, chat_id, downloaded_paths, generation_id, style.display_name)
+        await _send_results(bot, chat_id, downloaded_paths, generation_id, style.display_name, lang)
 
         logger.info("Generation %s completed successfully", generation_id)
 
@@ -168,8 +175,8 @@ async def run_generation(
         # Notify user of failure
         await bot.send_message(
             chat_id=chat_id,
-            text=GENERATION_ERROR_MESSAGE,
-            reply_markup=generation_result_keyboard(generation_id),
+            text=t.t("generation_error"),
+            reply_markup=generation_result_keyboard(generation_id, lang),
         )
 
         return {
@@ -207,9 +214,12 @@ async def _send_results(
     image_paths: list[str],
     generation_id: int,
     style_name: str,
+    lang: str = "en",
 ) -> None:
     """Send generated images as a media group to the user."""
     from aiogram.types import InputMediaPhoto
+
+    t = Translator(lang)
 
     media = [
         InputMediaPhoto(media=FSInputFile(path), caption=f"🎨 {style_name}" if i == 0 else "")
@@ -222,8 +232,8 @@ async def _send_results(
     # Send action buttons below
     await bot.send_message(
         chat_id=chat_id,
-        text="✅ Generation complete! What would you like to do next?",
-        reply_markup=generation_result_keyboard(generation_id),
+        text=t.t("generation_complete"),
+        reply_markup=generation_result_keyboard(generation_id, lang),
     )
 
 

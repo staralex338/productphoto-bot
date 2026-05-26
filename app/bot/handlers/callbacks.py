@@ -2,6 +2,7 @@
 Callback query handlers for inline keyboards.
 
 Handles style selection, generation triggers, and action buttons.
+Supports multilingual messages.
 """
 
 import asyncio
@@ -11,13 +12,8 @@ from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
+from app.bot.i18n import Translator
 from app.bot.keyboards import generation_result_keyboard, main_menu_keyboard
-from app.bot.messages import (
-    ASK_UPLOAD_MESSAGE,
-    GENERATION_ERROR_MESSAGE,
-    GENERATION_STARTED_MESSAGE,
-    NOT_ENOUGH_CREDITS_MESSAGE,
-)
 from app.bot.states import GenerationFlow
 from app.config import get_settings
 from app.database import AsyncSessionLocal
@@ -27,13 +23,13 @@ logger = logging.getLogger(__name__)
 router = Router()
 settings = get_settings()
 
-# Map callback data to human-readable style names
-STYLE_NAMES = {
-    "white_background": "⚪ White Background",
-    "lifestyle": "🏠 Lifestyle",
-    "studio_premium": "💎 Studio Premium",
-    "social_media_ad": "📱 Social Media Ad",
-}
+
+async def get_user_language(telegram_id: int) -> str:
+    """Fetch user's preferred language from database."""
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(telegram_id)
+        return user.language if user else "en"
 
 
 # =============================================================================
@@ -51,8 +47,11 @@ async def on_style_selected(callback: CallbackQuery, state: FSMContext):
     4. Trigger async generation task
     5. Show "generating..." message
     """
+    lang = await get_user_language(callback.from_user.id)
+    t = Translator(lang)
+
     style_key = callback.data.split(":")[1]
-    style_name = STYLE_NAMES.get(style_key, style_key)
+    style_name = t.t(f"style_{style_key}")
 
     # Get uploaded photo from state
     data = await state.get_data()
@@ -60,7 +59,7 @@ async def on_style_selected(callback: CallbackQuery, state: FSMContext):
     original_file_id = data.get("original_file_id")
 
     if not photo_path:
-        await callback.answer("Session expired. Please upload a photo again.", show_alert=True)
+        await callback.answer(t.t("session_expired"), show_alert=True)
         await state.clear()
         return
 
@@ -69,18 +68,17 @@ async def on_style_selected(callback: CallbackQuery, state: FSMContext):
         user = await user_repo.get_by_telegram_id(callback.from_user.id)
 
         if not user:
-            await callback.answer("Please send /start first.", show_alert=True)
+            await callback.answer(t.t("please_start"), show_alert=True)
             return
 
         # Check credits (1 credit per generation)
         credits_needed = 1
         if user.credits < credits_needed:
             await callback.message.edit_text(
-                NOT_ENOUGH_CREDITS_MESSAGE.format(
+                t.t("not_enough_credits",
                     required=credits_needed,
-                    available=user.credits,
-                ),
-                reply_markup=main_menu_keyboard(),
+                    available=user.credits),
+                reply_markup=main_menu_keyboard(lang),
             )
             await callback.answer()
             return
@@ -88,7 +86,7 @@ async def on_style_selected(callback: CallbackQuery, state: FSMContext):
         # Deduct credits atomically
         success = await user_repo.deduct_credits(user.id, credits_needed)
         if not success:
-            await callback.answer("Could not deduct credits. Try again.", show_alert=True)
+            await callback.answer(t.t("could_not_deduct"), show_alert=True)
             return
 
         # Determine model based on subscription
@@ -116,7 +114,7 @@ async def on_style_selected(callback: CallbackQuery, state: FSMContext):
 
     # Send generating message
     await callback.message.edit_text(
-        GENERATION_STARTED_MESSAGE.format(style=style_name),
+        t.t("generation_started", style=style_name),
     )
     await callback.answer(f"Generating {style_name}...")
 
@@ -154,6 +152,9 @@ async def on_regenerate(callback: CallbackQuery, state: FSMContext):
 
     Fetches the original generation and restarts with the same parameters.
     """
+    lang = await get_user_language(callback.from_user.id)
+    t = Translator(lang)
+
     generation_id = int(callback.data.split(":")[2])
 
     async with AsyncSessionLocal() as session:
@@ -162,23 +163,26 @@ async def on_regenerate(callback: CallbackQuery, state: FSMContext):
 
         original = await gen_repo.get_by_id(generation_id)
         if not original:
-            await callback.answer("Generation not found.", show_alert=True)
+            await callback.answer(t.t("generation_not_found"), show_alert=True)
             return
 
         user = await user_repo.get_by_telegram_id(callback.from_user.id)
         if not user:
-            await callback.answer("Please send /start first.", show_alert=True)
+            await callback.answer(t.t("please_start"), show_alert=True)
             return
 
         # Check credits
         if user.credits < 1:
-            await callback.answer("Not enough credits!", show_alert=True)
+            await callback.answer(
+                t.t("not_enough_credits", required=1, available=user.credits),
+                show_alert=True,
+            )
             return
 
         # Deduct credits
         success = await user_repo.deduct_credits(user.id, 1)
         if not success:
-            await callback.answer("Could not deduct credits.", show_alert=True)
+            await callback.answer(t.t("could_not_deduct"), show_alert=True)
             return
 
         # Create new generation record
@@ -211,11 +215,11 @@ async def on_regenerate(callback: CallbackQuery, state: FSMContext):
         ),
     )
 
-    style_name = STYLE_NAMES.get(original.generation_type, original.generation_type)
+    style_name = t.t(f"style_{original.generation_type}")
     await callback.message.answer(
-        GENERATION_STARTED_MESSAGE.format(style=style_name),
+        t.t("generation_started", style=style_name),
     )
-    await callback.answer("Regenerating...")
+    await callback.answer(t.t("regenerating"))
 
 
 @router.callback_query(F.data.startswith("action:upscale:"))
@@ -225,6 +229,9 @@ async def on_upscale(callback: CallbackQuery, state: FSMContext):
 
     Deducts 1 credit and submits upscale to task queue.
     """
+    lang = await get_user_language(callback.from_user.id)
+    t = Translator(lang)
+
     generation_id = int(callback.data.split(":")[2])
 
     async with AsyncSessionLocal() as session:
@@ -232,17 +239,20 @@ async def on_upscale(callback: CallbackQuery, state: FSMContext):
         user = await user_repo.get_by_telegram_id(callback.from_user.id)
 
         if not user:
-            await callback.answer("Please send /start first.", show_alert=True)
+            await callback.answer(t.t("please_start"), show_alert=True)
             return
 
         if user.credits < 1:
-            await callback.answer("Not enough credits for upscale!", show_alert=True)
+            await callback.answer(
+                t.t("not_enough_credits", required=1, available=user.credits),
+                show_alert=True,
+            )
             return
 
         # Deduct credit
         success = await user_repo.deduct_credits(user.id, 1)
         if not success:
-            await callback.answer("Could not deduct credits.", show_alert=True)
+            await callback.answer(t.t("could_not_deduct"), show_alert=True)
             return
 
     # Submit upscale to task queue
@@ -262,8 +272,8 @@ async def on_upscale(callback: CallbackQuery, state: FSMContext):
         ),
     )
 
-    await callback.answer("Upscaling...")
-    await callback.message.answer("🔍 <b>Upscale started!</b>\n\nThis will take a few seconds...")
+    await callback.answer(t.t("upscaling"))
+    await callback.message.answer(t.t("upscale_started"))
 
 
 # =============================================================================
@@ -273,12 +283,14 @@ async def on_upscale(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "menu:buy")
 async def on_menu_buy(callback: CallbackQuery):
     """Show buy credits menu."""
+    lang = await get_user_language(callback.from_user.id)
+    t = Translator(lang)
+
     from app.bot.keyboards import buy_credits_keyboard
-    from app.bot.messages import PAYMENT_CHOOSE_MESSAGE
 
     await callback.message.edit_text(
-        PAYMENT_CHOOSE_MESSAGE,
-        reply_markup=buy_credits_keyboard(),
+        t.t("payment_choose"),
+        reply_markup=buy_credits_keyboard(lang),
     )
     await callback.answer()
 
@@ -290,12 +302,14 @@ async def on_buy_item(callback: CallbackQuery):
 
     Shows payment method selection (Stars or Stripe).
     """
+    lang = await get_user_language(callback.from_user.id)
+    t = Translator(lang)
+
     parts = callback.data.split(":")
     item_type = parts[1]  # subscription | pack
     item_name = parts[2]  # starter | pro | 50 | 100 | 500
 
     from app.bot.keyboards import payment_method_keyboard
-    from app.bot.messages import PAYMENT_METHOD_MESSAGE
     from app.payments.credits import get_price_display
 
     price = get_price_display(item_type, item_name, currency="stars")
@@ -306,11 +320,10 @@ async def on_buy_item(callback: CallbackQuery):
         display_name = f"{item_name} Credits Pack"
 
     await callback.message.edit_text(
-        PAYMENT_METHOD_MESSAGE.format(
+        t.t("payment_method",
             item_name=display_name,
-            price=price,
-        ),
-        reply_markup=payment_method_keyboard(item_type, item_name),
+            price=price),
+        reply_markup=payment_method_keyboard(item_type, item_name, lang),
     )
     await callback.answer()
 
@@ -350,6 +363,9 @@ async def on_pay_with_stars(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("pay:stripe:"))
 async def on_pay_with_stripe(callback: CallbackQuery):
     """Handle Stripe payment selection."""
+    lang = await get_user_language(callback.from_user.id)
+    t = Translator(lang)
+
     parts = callback.data.split(":")
     item_type = parts[2]
     item_name = parts[3]
@@ -378,11 +394,11 @@ async def on_pay_with_stripe(callback: CallbackQuery):
                 cancel_url=cancel_url,
             )
         else:
-            await callback.answer("Unknown item type", show_alert=True)
+            await callback.answer(t.t("unknown_item_type"), show_alert=True)
             return
 
         await callback.message.answer(
-            f"💳 <b>Complete your payment</b>\n\n"
+            f"💳 <b>{t.t('btn_pay_card')}</b>\n\n"
             f"Click the link below to pay securely via Stripe:\n"
             f"<a href='{url}'>Pay Now</a>\n\n"
             f"After payment, your credits will be added automatically.",
@@ -391,7 +407,7 @@ async def on_pay_with_stripe(callback: CallbackQuery):
 
     except Exception as e:
         logger.exception("Stripe payment error: %s", e)
-        await callback.answer("Payment setup failed. Try again.", show_alert=True)
+        await callback.answer(t.t("payment_setup_failed"), show_alert=True)
 
 
 # =============================================================================
@@ -401,6 +417,11 @@ async def on_pay_with_stripe(callback: CallbackQuery):
 @router.callback_query(F.data == "menu:generate")
 async def on_menu_generate(callback: CallbackQuery, state: FSMContext):
     """Start the generation flow from main menu."""
+    lang = await get_user_language(callback.from_user.id)
+    t = Translator(lang)
+
     await state.set_state(GenerationFlow.uploading)
-    await callback.message.edit_text(ASK_UPLOAD_MESSAGE)
-    await callback.answer("Send me a product photo!")
+    await callback.message.edit_text(
+        t.t("ask_upload", max_size=settings.max_image_size_mb, min_dim=settings.min_image_dimension)
+    )
+    await callback.answer(t.t("send_photo"))

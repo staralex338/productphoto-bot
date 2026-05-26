@@ -2,6 +2,7 @@
 Photo upload handler.
 
 Validates uploaded images and transitions user to style selection state.
+Supports multilingual messages.
 """
 
 import logging
@@ -11,18 +12,20 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from PIL import Image
 
+from app.bot.i18n import Translator
 from app.bot.keyboards import style_selection_keyboard
-from app.bot.messages import ASK_UPLOAD_MESSAGE, INVALID_PHOTO_MESSAGE, PHOTO_RECEIVED_MESSAGE
 from app.bot.services.storage import download_telegram_photo
 from app.bot.states import GenerationFlow
 from app.config import get_settings
+from app.database import AsyncSessionLocal
+from app.database.repositories import UserRepository
 
 logger = logging.getLogger(__name__)
 router = Router()
 settings = get_settings()
 
 
-async def validate_image(file_path: str) -> tuple[bool, str]:
+async def validate_image(file_path: str, t: Translator = None) -> tuple[bool, str]:
     """
     Validate an image file.
 
@@ -31,32 +34,46 @@ async def validate_image(file_path: str) -> tuple[bool, str]:
       - Format is supported (JPG, PNG, WEBP)
       - Dimensions >= minimum required
 
+    Args:
+        file_path: Path to the image file
+        t: Optional Translator for localized error messages
+
     Returns:
         (is_valid, error_message)
     """
     import os
 
+    _t = t or Translator("en")
+
     # Check file size
     size_bytes = os.path.getsize(file_path)
     if size_bytes > settings.max_image_size_bytes:
         max_mb = settings.max_image_size_mb
-        return False, f"Image too large ({size_bytes / 1024 / 1024:.1f} MB). Max: {max_mb} MB."
+        return False, _t.t("image_too_large", size=size_bytes / 1024 / 1024, max_mb=max_mb)
 
     # Check format and dimensions
     try:
         with Image.open(file_path) as img:
             if img.format not in ("JPEG", "PNG", "WEBP"):
-                return False, f"Unsupported format: {img.format}. Use JPG, PNG, or WEBP."
+                return False, _t.t("unsupported_format", format=img.format)
 
             width, height = img.size
             if width < settings.min_image_dimension or height < settings.min_image_dimension:
                 min_dim = settings.min_image_dimension
-                return False, f"Image too small ({width}×{height}). Minimum: {min_dim}×{min_dim}px."
+                return False, _t.t("image_too_small", width=width, height=height, min_dim=min_dim)
 
             return True, ""
     except Exception as e:
         logger.error("Image validation error: %s", e)
-        return False, "Could not read image file. Please try another image."
+        return False, _t.t("could_not_read_image")
+
+
+async def get_user_language(telegram_id: int) -> str:
+    """Fetch user's preferred language from database."""
+    async with AsyncSessionLocal() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(telegram_id)
+        return user.language if user else "en"
 
 
 @router.message(F.photo)
@@ -69,6 +86,9 @@ async def on_photo_received(message: Message, state: FSMContext, bot: Bot):
     3. Store file path in FSM state
     4. Ask user to choose a style
     """
+    lang = await get_user_language(message.from_user.id)
+    t = Translator(lang)
+
     # Get the highest resolution photo (last in the list)
     photo = message.photo[-1]
 
@@ -76,10 +96,10 @@ async def on_photo_received(message: Message, state: FSMContext, bot: Bot):
     file_path = await download_telegram_photo(bot, photo, prefix="upload")
 
     # Validate
-    is_valid, error = await validate_image(str(file_path))
+    is_valid, error = await validate_image(str(file_path), t)
     if not is_valid:
         await message.answer(
-            f"❌ {error}\n\n{ASK_UPLOAD_MESSAGE}",
+            f"❌ {error}\n\n{t.t('ask_upload', max_size=settings.max_image_size_mb, min_dim=settings.min_image_dimension)}",
         )
         return
 
@@ -91,8 +111,8 @@ async def on_photo_received(message: Message, state: FSMContext, bot: Bot):
     await state.set_state(GenerationFlow.choosing_style)
 
     await message.answer(
-        PHOTO_RECEIVED_MESSAGE,
-        reply_markup=style_selection_keyboard(),
+        t.t("photo_received"),
+        reply_markup=style_selection_keyboard(lang),
     )
 
 
@@ -103,11 +123,14 @@ async def on_document_received(message: Message, state: FSMContext, bot: Bot):
 
     Some users send images as files to avoid Telegram compression.
     """
+    lang = await get_user_language(message.from_user.id)
+    t = Translator(lang)
+
     document = message.document
 
     # Check mime type
     if document.mime_type not in ("image/jpeg", "image/png", "image/webp"):
-        await message.answer(INVALID_PHOTO_MESSAGE)
+        await message.answer(t.t("invalid_photo", max_size=settings.max_image_size_mb, min_dim=settings.min_image_dimension))
         return
 
     # Download
@@ -117,10 +140,10 @@ async def on_document_received(message: Message, state: FSMContext, bot: Bot):
     )
 
     # Validate
-    is_valid, error = await validate_image(str(file_path))
+    is_valid, error = await validate_image(str(file_path), t)
     if not is_valid:
         await message.answer(
-            f"❌ {error}\n\n{ASK_UPLOAD_MESSAGE}",
+            f"❌ {error}\n\n{t.t('ask_upload', max_size=settings.max_image_size_mb, min_dim=settings.min_image_dimension)}",
         )
         return
 
@@ -132,6 +155,6 @@ async def on_document_received(message: Message, state: FSMContext, bot: Bot):
     await state.set_state(GenerationFlow.choosing_style)
 
     await message.answer(
-        PHOTO_RECEIVED_MESSAGE,
-        reply_markup=style_selection_keyboard(),
+        t.t("photo_received"),
+        reply_markup=style_selection_keyboard(lang),
     )
