@@ -246,3 +246,82 @@ def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=t.t("admin_back"), callback_data="admin:dashboard"),
     )
     return builder.as_markup()
+
+
+# =============================================================================
+# Admin Users
+# =============================================================================
+
+
+def admin_users_list_keyboard(users: list, page: int = 0, total_pages: int = 1) -> InlineKeyboardMarkup:
+    """Keyboard for paginated user list."""
+    t = Translator("ru")
+    builder = InlineKeyboardBuilder()
+
+    for user in users:
+        status = "🚫" if user.is_banned else "✅"
+        label = f"{status} {user.username or user.telegram_id} ({user.credits} cr)"
+        builder.row(
+            InlineKeyboardButton(text=label, callback_data=f"admin:user:{user.id}")
+        )
+
+    # Pagination
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"admin:users:{page-1}"))
+    nav.append(InlineKeyboardButton(text=f"{page+1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"admin:users:{page+1}"))
+    if nav:
+        builder.row(*nav)
+
+    # Search
+    builder.row(
+        InlineKeyboardButton(text="🔍 Поиск", callback_data="admin:users:search"),
+    )
+    builder.row(
+        InlineKeyboardButton(text=t.t("admin_back"), callback_data="admin:dashboard"),
+    )
+    return builder.as_markup()
+
+
+def admin_user_detail_keyboard(user_id: int, is_banned: bool) -> InlineKeyboardMarkup:
+    """Keyboard for user detail actions."""
+    t = Translator("ru")
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(text="➕ +10 кредитов", callback_data=f"admin:user:{user_id}:add:10"),
+        InlineKeyboardButton(text="➖ -10 кредитов", callback_data=f"admin:user:{user_id}:sub:10"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="➕ +100 кредитов", callback_data=f"admin:user:{user_id}:add:100"),
+        InlineKeyboardButton(text="➖ -100 кредитов", callback_data=f"admin:user:{user_id}:sub:100"),
+    )
+
+    if is_banned:
+        builder.row(
+            InlineKeyboardButton(text="✅ Разбанить", callback_data=f"admin:user:{user_id}:unban"),
+        )
+    else:
+        builder.row(
+            InlineKeyboardButton(text="🚫 Забанить", callback_data=f"admin:user:{user_id}:ban"),
+        )
+
+    builder.row(
+        InlineKeyboardButton(text="🎨 История генераций", callback_data=f"admin:user:{user_id}:history"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="🔙 К списку", callback_data="admin:users:0"),
+        InlineKeyboardButton(text=t.t("admin_back"), callback_data="admin:dashboard"),
+    )
+    return builder.as_markup()
+
+
+def admin_user_history_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    """Back button for user history."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🔙 К профилю", callback_data=f"admin:user:{user_id}"),
+    )
+    return builder.as_markup()

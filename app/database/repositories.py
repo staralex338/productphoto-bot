@@ -28,6 +28,13 @@ class UserRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_by_id(self, user_id: int) -> User | None:
+        """Fetch a user by internal ID."""
+        result = await self.session.execute(
+            select(User).where(User.id == user_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
         """Fetch a user by their Telegram ID."""
         result = await self.session.execute(
@@ -127,6 +134,46 @@ class UserRepository:
             select(func.count(User.id)).where(User.created_at >= since)
         )
         return result.scalar_one()
+
+    async def get_users_paginated(
+        self, offset: int = 0, limit: int = 10
+    ) -> list[User]:
+        """Get paginated list of users, newest first."""
+        result = await self.session.execute(
+            select(User)
+            .order_by(User.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return result.scalars().all()
+
+    async def search_users(self, query: str, limit: int = 10) -> list[User]:
+        """Search users by username or telegram_id."""
+        # Try to parse as telegram_id
+        try:
+            telegram_id = int(query)
+            result = await self.session.execute(
+                select(User).where(User.telegram_id == telegram_id)
+            )
+            user = result.scalar_one_or_none()
+            return [user] if user else []
+        except ValueError:
+            pass
+
+        # Search by username (partial match, case-insensitive)
+        result = await self.session.execute(
+            select(User)
+            .where(User.username.ilike(f"%{query}%"))
+            .limit(limit)
+        )
+        return result.scalars().all()
+
+    async def set_banned(self, user_id: int, banned: bool) -> None:
+        """Ban or unban a user."""
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(is_banned=banned)
+        )
+        await self.session.commit()
 
 
 # =============================================================================

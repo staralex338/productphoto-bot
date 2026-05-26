@@ -414,6 +414,81 @@ Need support? Contact @support_username""",
         "ru": "📢 <b>Рассылка</b>\n\nВ разработке...",
     },
 
+    "admin_users_list": {
+        "en": "👤 <b>Users</b> (page {page}/{total})\n\nSelect a user:",
+        "ru": "👤 <b>Пользователи</b> (страница {page}/{total})\n\nВыберите пользователя:",
+    },
+
+    "admin_user_not_found": {
+        "en": "❌ User not found.",
+        "ru": "❌ Пользователь не найден.",
+    },
+
+    "admin_user_detail": {
+        "en": (
+            "👤 <b>User Profile</b>\n\n"
+            "🆔 ID: <code>{telegram_id}</code>\n"
+            "👤 Username: @{username}\n"
+            "💳 Credits: <b>{credits}</b>\n"
+            "🌍 Language: {language}\n"
+            "📅 Plan: {plan}\n"
+            "🎁 Referral code: <code>{referral_code}</code>\n"
+            "📆 Registered: {created_at}\n"
+            "🚫 Status: {status}"
+        ),
+        "ru": (
+            "👤 <b>Профиль пользователя</b>\n\n"
+            "🆔 ID: <code>{telegram_id}</code>\n"
+            "👤 Username: @{username}\n"
+            "💳 Кредиты: <b>{credits}</b>\n"
+            "🌍 Язык: {language}\n"
+            "📅 Тариф: {plan}\n"
+            "🎁 Реферальный код: <code>{referral_code}</code>\n"
+            "📆 Зарегистрирован: {created_at}\n"
+            "🚫 Статус: {status}"
+        ),
+    },
+
+    "admin_credits_added": {
+        "en": "✅ Added <b>+{amount}</b> credits to user. New balance: <b>{balance}</b>",
+        "ru": "✅ Добавлено <b>+{amount}</b> кредитов. Новый баланс: <b>{balance}</b>",
+    },
+
+    "admin_credits_removed": {
+        "en": "✅ Removed <b>-{amount}</b> credits. New balance: <b>{balance}</b>",
+        "ru": "✅ Снято <b>-{amount}</b> кредитов. Новый баланс: <b>{balance}</b>",
+    },
+
+    "admin_user_banned": {
+        "en": "🚫 User <b>banned</b>.",
+        "ru": "🚫 Пользователь <b>забанен</b>.",
+    },
+
+    "admin_user_unbanned": {
+        "en": "✅ User <b>unbanned</b>.",
+        "ru": "✅ Пользователь <b>разбанен</b>.",
+    },
+
+    "admin_user_history": {
+        "en": "🎨 <b>Generation History</b> for user:\n\n{items}",
+        "ru": "🎨 <b>История генераций</b> пользователя:\n\n{items}",
+    },
+
+    "admin_history_empty": {
+        "en": "No generations yet.",
+        "ru": "Пока нет генераций.",
+    },
+
+    "admin_search_prompt": {
+        "en": "🔍 <b>Search user</b>\n\nEnter username or Telegram ID:",
+        "ru": "🔍 <b>Поиск пользователя</b>\n\nВведите @username или Telegram ID:",
+    },
+
+    "admin_search_no_results": {
+        "en": "❌ No users found.",
+        "ru": "❌ Пользователи не найдены.",
+    },
+
     # --- Errors / Misc ---
     "please_start": {
         "en": "Please send /start first.",

@@ -26,3 +26,9 @@ class GenerationFlow(StatesGroup):
 
     # Style selected, generation in progress
     generating = State()
+
+
+class AdminSearch(StatesGroup):
+    """State for admin searching users."""
+
+    waiting_for_query = State()

@@ -84,6 +84,13 @@ class User(Base):
         comment="User ID of referrer",
     )
 
+    # Ban status
+    is_banned: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+        comment="Whether user is banned from using the bot",
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
