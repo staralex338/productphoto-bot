@@ -81,12 +81,20 @@ async def lifespan(app: FastAPI):
 
     # 3. Initialize database connection
     from app.database.engine import init_db
-    await init_db()
-    logger.info("Database connected.")
+    try:
+        await init_db()
+        logger.info("Database connected.")
+    except Exception as e:
+        logger.error("Database connection failed: %s", e)
+        # Ensure bot session is closed before re-raising
+        if bot:
+            await bot.session.close()
+        raise
 
     # 4. Start background cleanup task for task queue
     from app.bot.services.task_queue import get_task_queue
 
+    cleanup_task = None
     async def cleanup_loop():
         """Periodically clean completed tasks from queue to prevent memory leaks."""
         while True:
@@ -98,25 +106,27 @@ async def lifespan(app: FastAPI):
 
     cleanup_task = asyncio.create_task(cleanup_loop())
 
-    yield  # Application runs here
-
-    # --- Shutdown ---
-    logger.info("🛑 Shutting down %s...", settings.app_name)
-
-    cleanup_task.cancel()
     try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
+        yield  # Application runs here
+    finally:
+        # --- Shutdown ---
+        logger.info("🛑 Shutting down %s...", settings.app_name)
 
-    if bot:
-        await bot.session.close()
-        logger.info("Bot session closed.")
+        if cleanup_task:
+            cleanup_task.cancel()
+            try:
+                await cleanup_task
+            except asyncio.CancelledError:
+                pass
 
-    # Close database connection
-    from app.database.engine import close_db
-    await close_db()
-    logger.info("Database connection closed.")
+        if bot:
+            await bot.session.close()
+            logger.info("Bot session closed.")
+
+        # Close database connection
+        from app.database.engine import close_db
+        await close_db()
+        logger.info("Database connection closed.")
 
 
 # Create FastAPI application
@@ -173,6 +183,16 @@ async def root():
         "docs": "/docs",
         "health": "/health",
     }
+
+
+@app.post("/")
+async def root_post(request: Request):
+    """
+    Catch-all POST handler for Railway internal healthchecks.
+    Railway sometimes sends POST probes to root; this prevents 405 noise in logs.
+    """
+    logger.debug("Received POST to root from %s", request.client.host)
+    return {"status": "ok"}
 
 
 @app.post("/webhook/fal")
