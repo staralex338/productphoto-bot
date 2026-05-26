@@ -214,3 +214,35 @@ def confirm_cancel_keyboard(confirm_callback: str, cancel_callback: str = "menu:
         InlineKeyboardButton(text=t.t("btn_cancel"), callback_data=cancel_callback),
     )
     return builder.as_markup()
+
+
+# =============================================================================
+# Admin Dashboard
+# =============================================================================
+
+
+def admin_dashboard_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard for admin dashboard."""
+    t = Translator("ru")
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text=t.t("admin_refresh"), callback_data="admin:dashboard"),
+    )
+    builder.row(
+        InlineKeyboardButton(text=t.t("admin_users"), callback_data="admin:users"),
+        InlineKeyboardButton(text=t.t("admin_generations"), callback_data="admin:generations"),
+    )
+    builder.row(
+        InlineKeyboardButton(text=t.t("admin_broadcast"), callback_data="admin:broadcast"),
+    )
+    return builder.as_markup()
+
+
+def admin_main_menu_keyboard() -> InlineKeyboardMarkup:
+    """Back to admin dashboard button."""
+    t = Translator("ru")
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text=t.t("admin_back"), callback_data="admin:dashboard"),
+    )
+    return builder.as_markup()

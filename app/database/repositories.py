@@ -115,8 +115,17 @@ class UserRepository:
             .values(language=language)
         )
         await self.session.commit()
+
+    async def get_total_users(self) -> int:
         """Get total number of registered users."""
         result = await self.session.execute(select(func.count(User.id)))
+        return result.scalar_one()
+
+    async def get_new_users_count(self, since: datetime) -> int:
+        """Count users registered since given datetime."""
+        result = await self.session.execute(
+            select(func.count(User.id)).where(User.created_at >= since)
+        )
         return result.scalar_one()
 
 
@@ -212,6 +221,18 @@ class GenerationRepository:
         )
         return result.scalar_one()
 
+    async def get_total_generations(self) -> int:
+        """Get total number of all generations."""
+        result = await self.session.execute(select(func.count(Generation.id)))
+        return result.scalar_one()
+
+    async def get_generations_count(self, since: datetime) -> int:
+        """Count generations created since given datetime."""
+        result = await self.session.execute(
+            select(func.count(Generation.id)).where(Generation.created_at >= since)
+        )
+        return result.scalar_one()
+
 
 # =============================================================================
 # Payment Repository
@@ -248,3 +269,22 @@ class PaymentRepository:
             .limit(limit)
         )
         return result.scalars().all()
+
+    async def get_total_revenue(self) -> float:
+        """Get total revenue from all completed payments."""
+        result = await self.session.execute(
+            select(func.sum(Payment.amount)).where(Payment.status == "completed")
+        )
+        total = result.scalar_one_or_none()
+        return float(total) if total else 0.0
+
+    async def get_revenue(self, since: datetime) -> float:
+        """Get revenue from completed payments since given datetime."""
+        result = await self.session.execute(
+            select(func.sum(Payment.amount)).where(
+                Payment.status == "completed",
+                Payment.created_at >= since,
+            )
+        )
+        total = result.scalar_one_or_none()
+        return float(total) if total else 0.0

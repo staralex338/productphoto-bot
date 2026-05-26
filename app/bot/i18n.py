@@ -371,6 +371,49 @@ Need support? Contact @support_username""",
     "btn_regenerate": {"en": "🔄 Regenerate", "ru": "🔄 Перегенерировать"},
     "btn_upscale": {"en": "🔍 Upscale", "ru": "🔍 Увеличить"},
 
+    # --- Admin ---
+    "admin_dashboard": {
+        "en": (
+            "📊 <b>Admin Dashboard</b>\n\n"
+            "👥 <b>Users:</b> {total_users} total\n"
+            "   • Today: +{new_today}\n"
+            "   • Week: +{new_week}\n"
+            "   • Month: +{new_month}\n\n"
+            "🎨 <b>Generations:</b> {total_generations} total | {gen_today} today\n\n"
+            "💰 <b>Revenue:</b> ${total_revenue} total | ${revenue_today} today"
+        ),
+        "ru": (
+            "📊 <b>Панель администратора</b>\n\n"
+            "👥 <b>Пользователи:</b> {total_users} всего\n"
+            "   • Сегодня: +{new_today}\n"
+            "   • Неделя: +{new_week}\n"
+            "   • Месяц: +{new_month}\n\n"
+            "🎨 <b>Генерации:</b> {total_generations} всего | {gen_today} сегодня\n\n"
+            "💰 <b>Доход:</b> ${total_revenue} всего | ${revenue_today} сегодня"
+        ),
+    },
+
+    "admin_refresh": {"en": "🔄 Refresh", "ru": "🔄 Обновить"},
+    "admin_users": {"en": "👤 Users", "ru": "👤 Пользователи"},
+    "admin_generations": {"en": "🎨 Generations", "ru": "🎨 Генерации"},
+    "admin_broadcast": {"en": "📢 Broadcast", "ru": "📢 Рассылка"},
+    "admin_back": {"en": "🔙 Back", "ru": "🔙 Назад"},
+
+    "admin_users_title": {
+        "en": "👤 <b>Users Management</b>\n\nComing soon...",
+        "ru": "👤 <b>Управление пользователями</b>\n\nВ разработке...",
+    },
+
+    "admin_generations_title": {
+        "en": "🎨 <b>Generations Management</b>\n\nComing soon...",
+        "ru": "🎨 <b>Управление генерациями</b>\n\nВ разработке...",
+    },
+
+    "admin_broadcast_title": {
+        "en": "📢 <b>Broadcast</b>\n\nComing soon...",
+        "ru": "📢 <b>Рассылка</b>\n\nВ разработке...",
+    },
+
     # --- Errors / Misc ---
     "please_start": {
         "en": "Please send /start first.",

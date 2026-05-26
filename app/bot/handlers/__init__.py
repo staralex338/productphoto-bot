@@ -10,6 +10,7 @@ from app.bot.handlers.commands import router as commands_router
 from app.bot.handlers.photos import router as photos_router
 from app.bot.handlers.callbacks import router as callbacks_router
 from app.bot.handlers.payments import router as payments_router
+from app.bot.handlers.admin import router as admin_router
 
 
 def register_handlers(dp: Dispatcher) -> None:
@@ -22,3 +23,4 @@ def register_handlers(dp: Dispatcher) -> None:
     dp.include_router(photos_router)
     dp.include_router(callbacks_router)
     dp.include_router(payments_router)
+    dp.include_router(admin_router)
